@@ -6,7 +6,7 @@ containers:
   - containerImage: "ghcr.io/chaeyoon-08/gcube-pytorch-jupyter:latest"
     repo: ghcr.io
     port: 8888
-    maxConnection: 4
+    maxConnection: 32
     containerCommand: ""
     isCredential: false
     containerEnvs: []
