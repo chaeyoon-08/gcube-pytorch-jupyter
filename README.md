@@ -1,30 +1,38 @@
 # gcube-pytorch-jupyter
 
-gcube + Claude Code 연계 PyTorch JupyterLab 환경
+PyTorch + JupyterLab Docker image, auto-built and published to GHCR for deployment on gcube.
 
-## 구성
+## Image
 
-- **Base Image**: `pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime`
-- **Python 패키지**: JupyterLab, NumPy, Pandas, Matplotlib, Transformers, Datasets
-- **포트**: 8888 (JupyterLab)
+- Base: `pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime`
+- Extras: `jupyterlab`, `numpy`, `pandas`, `matplotlib`, `transformers`, `datasets`
+- Workdir: `/workspace`
+- Exposes: `8888`
+- Entrypoint: JupyterLab on `0.0.0.0:8888`. Token is taken from `JUPYTER_TOKEN` env var; if unset, JupyterLab starts with no token.
 
-## 빌드
+Pull:
 
-GitHub Actions가 `main` 브랜치 push 시 자동으로 Docker 이미지를 빌드하여 ghcr.io에 푸시합니다.
-
+```bash
+docker pull ghcr.io/chaeyoon-08/gcube-pytorch-jupyter:latest
 ```
-ghcr.io/chaeyoon-08/gcube-pytorch-jupyter:latest
+
+Run locally:
+
+```bash
+docker run --rm -p 8888:8888 -e JUPYTER_TOKEN=mytoken \
+  ghcr.io/chaeyoon-08/gcube-pytorch-jupyter:latest
 ```
 
-## gcube 배포
+## CI
+
+`.github/workflows/build.yml` builds the image on every push to `main` and pushes `:latest` plus a `:${sha}` tag to `ghcr.io/chaeyoon-08/gcube-pytorch-jupyter`.
+
+## gcube deployment
+
+`workload.yaml` defines a gcube workload using this image (port 8888, RTX3070 Tier 3, CUDA 12.8, 4 GiB shared memory).
 
 ```bash
 gcube workload register -f workload.yaml
-gcube workload start <SER>
+gcube workload start <ser>
+gcube workload describe <ser>
 ```
-
-## 환경변수
-
-| 변수 | 설명 |
-|------|------|
-| `JUPYTER_TOKEN` | JupyterLab 접속 토큰 (미설정 시 토큰 없이 접속) |
