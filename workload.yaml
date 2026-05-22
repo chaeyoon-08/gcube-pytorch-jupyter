@@ -13,4 +13,4 @@ containers:
     userStorages: []
 
 gpuSpecs:
-  - gpuCode: "101"
+  - gpuCode: "025"
