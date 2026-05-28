@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 압축 해제(uncompressed) 기준 이미지 크기 상한. gcube 제약: 17GB.
+# 17 GiB = 17 * 1024^3 bytes. gcube가 10진수 GB(17 * 1000^3)를 의미하면 이 값을 낮출 것.
+env:
+  MAX_IMAGE_BYTES: 18253611008
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,17 +29,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set short SHA
         id: vars
         run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      # 1) 먼저 로컬 데몬으로 load (push 안 함) — 압축 해제 크기를 정확히 재기 위함
+      - name: Build (load to local daemon)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:latest
+            ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 2) 압축 해제 크기 측정 → 17GB 초과 시 push 전에 실패
+      - name: Check uncompressed image size
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:${{ steps.vars.outputs.sha_short }}"
+          SIZE_BYTES=$(docker image inspect "$IMAGE" --format='{{.Size}}')
+          SIZE_GIB=$(awk "BEGIN { printf \"%.2f\", ${SIZE_BYTES}/1073741824 }")
+          SIZE_GB=$(awk "BEGIN { printf \"%.2f\", ${SIZE_BYTES}/1000000000 }")
+          MAX_GIB=$(awk "BEGIN { printf \"%.2f\", ${MAX_IMAGE_BYTES}/1073741824 }")
+          echo "=================================================="
+          echo " 이미지(압축 해제): ${SIZE_GIB} GiB (${SIZE_GB} GB)"
+          echo " 상한            : ${MAX_GIB} GiB (${MAX_IMAGE_BYTES} bytes)"
+          echo "=================================================="
+          if [ "$SIZE_BYTES" -gt "$MAX_IMAGE_BYTES" ]; then
+            echo "::error::이미지가 상한(17GB)을 초과했습니다. push를 중단합니다."
+            exit 1
+          fi
+          echo "상한 이내 — push 진행"
+
+      # 3) 크기 통과 시 push (gha 캐시 재사용으로 빠르게 끝남)
+      - name: Push to GHCR
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -44,7 +77,5 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:latest
             ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:${{ steps.vars.outputs.sha_short }}
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/gcube-pytorch-jupyter:latest
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/gcube-pytorch-jupyter:${{ steps.vars.outputs.sha_short }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
