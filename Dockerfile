@@ -16,4 +16,4 @@ WORKDIR /workspace
 
 EXPOSE 8888
 
-CMD ["sh", "-c", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token=\"${JUPYTER_TOKEN:-}\" --ServerApp.password=\"\" --ServerApp.root_dir=/workspace"]
+CMD ["sh", "-c", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token=\"${JUPYTER_TOKEN:-}\" --ServerApp.password=\"\" --ServerApp.root_dir=/workspace --ServerApp.default_url=/lab --ServerApp.allow_origin=\"*\" --ServerApp.allow_remote_access=True --ServerApp.trust_xheaders=True"]
