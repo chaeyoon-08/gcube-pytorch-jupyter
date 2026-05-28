@@ -39,6 +39,8 @@ jobs:
         with:
           context: .
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:latest
             ghcr.io/${{ github.repository_owner }}/gcube-pytorch-jupyter:${{ steps.vars.outputs.sha_short }}
